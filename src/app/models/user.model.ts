@@ -16,4 +16,18 @@ const insert = async (user: any): Promise<ResultSetHeader> => {
     return result;
 };
 
-export {insert};
+const getByEmail = async (email: string): Promise<any> => {
+    Logger.info(`Getting user with email ${email} from the database`);
+
+    const conn = await getPool().getConnection();
+
+    const query = 'select * from user where email = ?';
+
+    const [rows] = await conn.query(query, [email]);
+
+    await conn.release();
+
+    return rows[0];
+};
+
+export {insert, getByEmail};
