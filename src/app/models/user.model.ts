@@ -68,18 +68,19 @@ const getByEmail = async (email: string): Promise<any> => {
     return rows[0];
 };
 
-const getOne = async (id: number): Promise<User[]> => {
+// Returns a single user (not an array) or null if not found
+const getOne = async (id: number): Promise<User> => {
     Logger.info(`Getting user ${id} from the database`);
 
     const conn = await getPool().getConnection();
 
-    const query = 'select * from lab2_users where user_id = ?';
+    const query = 'select * from user where id = ?';
 
     const [rows] = await conn.query(query, [id]);
 
     await conn.release();
 
-    return rows;
+    return rows[0] ? rows[0] : null;
 };
 
 export {insert, updateToken, getByEmail, getOne, getByToken, deleteToken};

@@ -119,20 +119,52 @@ const logout = async (req: Request, res: Response): Promise<void> => {
     }
 }
 
-
 const view = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        const userId = Number(req.params.id);
+        if (isNaN(userId)) {
+            // ID is not a number
+            res.status(400).send({ message: "Invalid user ID format." });
+            return;
+        }
+
+        const token = req.header('x-authorization');
+        let authenticatedUser = null;
+
+        if (token) {
+            // Attempt to authenticate the user with the token
+            authenticatedUser = await userModel.getByToken(token);
+        }
+
+        const user = await userModel.getOne(userId);
+        if (!user) {
+            // No user found with the ID
+            res.status(404).send({ message: "User not found." });
+            return;
+        }
+
+        // Determine if the request is for the authenticated user's own details
+        if (authenticatedUser && authenticatedUser.id === userId) {
+            res.status(200).send({
+                firstName: user.first_name,
+                lastName: user.last_name,
+                email: user.email
+            });
+        } else {
+            // For requests about other users or unauthenticated requests, exclude the email
+            res.status(200).send({
+                firstName: user.first_name,
+                lastName: user.last_name
+            });
+        }
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
         res.status(500).send();
         return;
     }
-}
+};
+
 
 const update = async (req: Request, res: Response): Promise<void> => {
     try{
