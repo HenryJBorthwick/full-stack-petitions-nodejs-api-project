@@ -83,4 +83,42 @@ const getOne = async (id: number): Promise<User> => {
     return rows[0] ? rows[0] : null;
 };
 
-export {insert, updateToken, getByEmail, getOne, getByToken, deleteToken};
+const update = async (userId: number, user: any): Promise<void> => {
+    Logger.info(`Updating user with id ${userId}`);
+
+    const conn = await getPool().getConnection();
+
+    // Initialize parts of the query
+    let query = 'UPDATE user SET ';
+    const values = [];
+    const queryParts = [];
+
+    // Conditionally add parts to the query based on provided fields
+    if (user.email !== undefined) {
+        queryParts.push('email = ?');
+        values.push(user.email);
+    }
+    if (user.firstName !== undefined) {
+        queryParts.push('first_name = ?');
+        values.push(user.firstName);
+    }
+    if (user.lastName !== undefined) {
+        queryParts.push('last_name = ?');
+        values.push(user.lastName);
+    }
+    if (user.password !== undefined) {
+        queryParts.push('password = ?');
+        values.push(user.password);
+    }
+
+    // Join all parts of the query
+    query += queryParts.join(', ') + ' WHERE id = ?';
+    values.push(userId);
+
+    // Execute the query
+    await conn.query(query, values);
+
+    await conn.release();
+};
+
+export {insert, update, updateToken, getByEmail, getOne, getByToken, deleteToken};

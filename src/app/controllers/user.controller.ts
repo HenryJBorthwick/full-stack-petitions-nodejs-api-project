@@ -165,19 +165,77 @@ const view = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
+const update = async (req: Request, res: Response) => {
+    try {
+        const userId = Number(req.params.id);
+        if (isNaN(userId)) {
+            res.status(400).send({ message: "Invalid user ID format." });
+            return;
+        }
 
-const update = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+        const token = req.header('x-authorization');
+        if (!token) {
+            res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
+        }
+
+        const authenticatedUser = await userModel.getByToken(token);
+        if (!authenticatedUser) {
+            res.status(401).send({ message: "Unauthorized: Invalid token." });
+            return;
+        }
+
+        if (authenticatedUser.id !== userId) {
+            res.status(403).send({ message: "Forbidden: Cannot edit another user's information." });
+            return;
+        }
+
+        // Validate the request body against the user_edit schema
+        const validation = await validate(schemas.user_edit, req.body);
+        if (validation !== true) {
+            res.status(400).send({ message: `Bad Request: ${validation.toString()}` });
+            return;
+        }
+
+        if (req.body.email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(req.body.email)) {
+                res.status(400).send({ message: "Invalid email format." });
+                return;
+            }
+
+            const existingUser = await userModel.getByEmail(req.body.email);
+            if (existingUser && existingUser.id !== userId) {
+                res.status(403).send({ message: "Email already in use." });
+                return;
+            }
+        }
+
+        if (req.body.password) {
+            if (req.body.password === req.body.currentPassword) {
+                res.status(403).send({ message: "New password cannot be the same as the current password." });
+                return;
+            }
+
+            const passwordMatch = await compare(req.body.currentPassword, authenticatedUser.password);
+            if (!passwordMatch) {
+                res.status(401).send({ message: "Unauthorized: Invalid current password." });
+                return;
+            }
+            req.body.password = await hash(req.body.password);
+        }
+
+        if (req.body.lastName === "") {
+            res.status(400).send({ message: "Last name cannot be empty." });
+            return;
+        }
+
+        await userModel.update(userId, req.body);
+        res.status(200).send({ message: "User information updated successfully." });
     } catch (err) {
         Logger.error(err);
-        res.statusMessage = "Internal Server Error";
-        res.status(500).send();
-        return;
+        res.status(500).send({ message: "Internal Server Error" });
     }
-}
+};
 
 export {register, login, logout, view, update}
