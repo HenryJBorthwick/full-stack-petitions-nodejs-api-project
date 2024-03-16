@@ -11,6 +11,7 @@ dotenv.config();
 const register = async (req: Request, res: Response): Promise<void> => {
     Logger.http(`POST create a user with email: ${req.body.email}`);
 
+    // Validate the request body against the user registration schema
     const validation = await validate(schemas.user_register, req.body);
 
     if (validation !== true) {
@@ -35,6 +36,7 @@ const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     const user = req.body;
+    // Hash the password before storing it in the database
     user.password = await hash(user.password);
 
     try {
@@ -47,17 +49,21 @@ const register = async (req: Request, res: Response): Promise<void> => {
 
 const login = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { email, password } = req.body;
+        // Validate the request body against the user login schema
+        const validation = await validate(schemas.user_login, req.body);
 
-        if (!email || !password) {
-            res.statusMessage = "Bad Request: Email and password are required";
+        if (validation !== true) {
+            res.statusMessage = `Bad Request: ${validation.toString()}`;
             res.status(400).send();
             return;
         }
 
+        const { email, password } = req.body;
+
         const user = await userModel.getByEmail(email);
 
         if (!user) {
+            // If email does not match
             res.statusMessage = "Unauthorized: Incorrect email/password";
             res.status(401).send();
             return;
@@ -66,13 +72,18 @@ const login = async (req: Request, res: Response): Promise<void> => {
         const passwordMatch = await compare(password, user.password);
 
         if (!passwordMatch) {
+            // If passwords do not match
             res.statusMessage = "Unauthorized: Incorrect email/password";
             res.status(401).send();
             return;
         }
 
+        // Token generation
         const secretKey = process.env.JWT_SECRET;
         const token = jwt.sign({ id: user.id }, secretKey);
+
+        // Update token in the database
+        await userModel.updateToken(user.id, token);
 
         res.status(200).send({ "userId": user.id, "token": token });
     } catch (err) {
@@ -84,11 +95,22 @@ const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 const logout = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        // Get current token
+        const token = req.header('x-authorization');
+
+        const user = await userModel.getByToken(token);
+
+        if (!user) {
+            // If token does not exist
+            res.statusMessage = "Unauthorized: Invalid token";
+            res.status(401).send();
+            return;
+        }
+
+        await userModel.deleteToken(token);
+
+        res.status(200).send({ message: "Successfully logged out" });
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
@@ -96,6 +118,7 @@ const logout = async (req: Request, res: Response): Promise<void> => {
         return;
     }
 }
+
 
 const view = async (req: Request, res: Response): Promise<void> => {
     try{
