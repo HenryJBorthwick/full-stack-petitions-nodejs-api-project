@@ -3,6 +3,7 @@ import Logger from "../../config/logger";
 import { promises as fs } from 'fs';
 import path from 'path';
 import * as userImageModel from '../models/user.image.model';
+import * as userModel from "../models/user.model";
 
 const getImage = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -10,7 +11,8 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
         const imageFileName = await userImageModel.getImageFilename(userId);
 
         if (imageFileName) {
-            const imagePath = path.join(__dirname, '../../storage/images', imageFileName);
+            // file exists, construct the path
+            const imagePath = path.join('storage', imageFileName);
 
             try {
                 // Attempt to access the file
@@ -18,7 +20,7 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
 
                 // If the file exists, determine the Content-Type
                 const ext = path.extname(imageFileName);
-                let contentType = 'image/jpeg'; // Default content type
+                let contentType = 'image/jpeg';
                 switch (ext) {
                     case '.png':
                         contentType = 'image/png';
@@ -31,12 +33,14 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
 
                 // Send the file as a response
                 res.setHeader('Content-Type', contentType);
-                res.sendFile(imagePath);
+                res.statusMessage = 'OK';
+                res.status(200).send(await fs.readFile(imagePath));
             } catch (error) {
-                // If the file does not exist, access will throw an error
+                // If the file does not exist
                 res.status(404).send('Image not found');
             }
         } else {
+            // No user found with the ID
             res.status(404).send('User not found');
         }
     } catch (err) {
@@ -51,6 +55,34 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
         const fileType = req.header('Content-Type');
         const imageFile = req.body as Buffer;
 
+        // Check if the user exists
+        const user = await userModel.getOne(userId);
+        if (!user) {
+            // No user found with the ID
+            res.status(404).send({ message: "User not found." });
+            return;
+        }
+
+        // Check if the user is authenticated
+        const token = req.header('x-authorization');
+        if (!token) {
+            res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
+        }
+
+        // Check if the token is valid
+        const authenticatedUser = await userModel.getByToken(token);
+        if (!authenticatedUser) {
+            res.status(401).send({ message: "Unauthorized: Invalid token." });
+            return;
+        }
+
+        // Check if the authenticated user is the same as the user being updated
+        if (authenticatedUser.id !== userId) {
+            res.status(403).send({ message: "Forbidden: Cannot edit another user's information." });
+            return;
+        }
+
         // Validate the image file
         if (!imageFile || !['image/png', 'image/jpeg', 'image/gif'].includes(fileType)) {
             res.status(400).send('Invalid image file');
@@ -59,19 +91,22 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
 
         // Construct the image filename and path
         const imageFileName = `${userId}_${Date.now()}.${fileType.split('/')[1]}`;
-
-        const imagePath = path.join(__dirname, '../storage/images', imageFileName);
+        const imagePath = path.join('storage', imageFileName);
 
         // Save the image file to the storage directory
         await fs.writeFile(imagePath, imageFile, 'binary');
 
         // Update the user's image filename in the database
-        const wasImageSet = await userImageModel.setImageFilename(userId, imageFileName);
+        const [wasImageSet, oldImageFilename] = await userImageModel.setImageFilename(userId, imageFileName);
 
         if (wasImageSet) {
-            res.status(200).send('Image updated successfully.');
+            if (oldImageFilename === null) {
+                res.status(201).send('Image added successfully.');
+            } else {
+                res.status(200).send('Image updated successfully.');
+            }
         } else {
-            res.status(201).send('Image added successfully.');
+            res.status(500).send('Internal Server Error');
         }
     } catch (err) {
         Logger.error(err);
@@ -80,17 +115,60 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
 };
 
 const deleteImage = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        const userId = Number(req.params.id);
+
+        // Check if userId is a valid number
+        if (isNaN(userId)) {
+            res.status(404).send('Not Found. No such user with ID given');
+            return;
+        }
+
+        // Get the user's image filename
+        const imageFileName = await userImageModel.getImageFilename(userId);
+        if (!imageFileName) {
+            res.status(404).send({ message: "Not Found: User has no image." });
+            return;
+        }
+
+        // Check if the user is authenticated
+        const token = req.header('x-authorization');
+        if (!token) {
+            res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
+        }
+
+        // Check if the token is valid
+        const authenticatedUser = await userModel.getByToken(token);
+        if (!authenticatedUser) {
+            res.status(401).send({ message: "Unauthorized: Invalid token." });
+            return;
+        }
+
+        // Check if the authenticated user is the same as the user being updated
+        if (authenticatedUser.id !== userId) {
+            res.status(403).send({ message: "Forbidden: Cannot delete another user's image." });
+            return;
+        }
+
+        // Construct the image path
+        const imagePath = path.join('storage', imageFileName);
+
+        // Delete the image file
+        await fs.unlink(imagePath);
+
+        // Update the user's image filename in the database to null
+        const wasImageSet = await userImageModel.setImageFilename(userId, null);
+
+        if (wasImageSet) {
+            res.status(200).send('Image deleted successfully.');
+        } else {
+            res.status(500).send('Internal Server Error');
+        }
     } catch (err) {
         Logger.error(err);
-        res.statusMessage = "Internal Server Error";
-        res.status(500).send();
-        return;
+        res.status(500).send('Internal Server Error');
     }
-}
+};
 
 export {getImage, setImage, deleteImage}
