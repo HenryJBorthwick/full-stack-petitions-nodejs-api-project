@@ -153,5 +153,68 @@ const getPetitionById = async (petitionId: number): Promise<any> => {
     }
 };
 
-export {getPetitions, getPetitionById};
+const addPetition = async ({
+   title,
+   description,
+   categoryId,
+   ownerId,
+   supportTiers
+}: {
+    title: string,
+    description: string,
+    categoryId: number,
+    ownerId: number,
+    supportTiers: {
+        title: string,
+        description: string,
+        cost: number,
+    }[]
+}): Promise<number | null> => {
+    const conn = await getPool().getConnection();
+
+    try {
+        // Start transaction
+        await conn.beginTransaction();
+
+        // Check if category exists
+        const categoryExists = await conn.query('SELECT 1 FROM category WHERE id = ?', [categoryId]);
+        if (categoryExists[0].length === 0) {
+            throw new Error('Category does not exist');
+        }
+
+        // Check for unique title
+        const titleExists = await conn.query('SELECT 1 FROM petition WHERE title = ?', [title]);
+        if (titleExists[0].length > 0) {
+            throw new Error('Petition title already exists');
+        }
+
+        // Check support tiers constraints
+        if (supportTiers.length < 1 || supportTiers.length > 3) {
+            throw new Error('Support tiers must be between 1 and 3');
+        }
+
+        // Insert petition
+        const [petitionResult] = await conn.query('INSERT INTO petition (title, description, category_id, owner_id, creation_date) VALUES (?, ?, ?, ?, NOW())', [title, description, categoryId, ownerId]);
+        const petitionId = petitionResult.insertId;
+
+        // Insert support tiers
+        for (const tier of supportTiers) {
+            await conn.query('INSERT INTO support_tier (petition_id, title, description, cost) VALUES (?, ?, ?, ?)', [petitionId, tier.title, tier.description, tier.cost]);
+        }
+
+        // Commit transaction
+        await conn.commit();
+
+        return petitionId;
+    } catch (error) {
+        // Rollback transaction on error
+        await conn.rollback();
+        Logger.error(error);
+        return null;
+    } finally {
+        await conn.release();
+    }
+};
+
+export {getPetitions, getPetitionById, addPetition};
 

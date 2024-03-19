@@ -82,18 +82,53 @@ const getPetition = async (req: Request, res: Response): Promise<void> => {
 };
 
 const addPetition = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        const token = req.header('x-authorization');
+        if (!token) {
+            res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
+        }
+
+        const authenticatedUser = await userModel.getByToken(token);
+        if (!authenticatedUser) {
+            res.status(401).send({ message: "Unauthorized: Invalid token." });
+            return;
+        }
+
+        // Validate the request body against the PostPetition schema
+        const validation = await validate(schemas.petition_post, req.body);
+        if (validation !== true) {
+            res.statusMessage = `Bad Request: ${validation.toString()}`;
+            res.status(400).send();
+            return;
+        }
+
+        // Extracting fields from the request body
+        const { title, description, categoryId, supportTiers } = req.body;
+
+        // Implement further validation (unique title, valid category, support tiers constraints) in the model function
+        const petitionId = await petitionModel.addPetition({
+            title,
+            description,
+            categoryId,
+            ownerId: authenticatedUser.id,
+            supportTiers
+        });
+
+        if (petitionId === null) {
+            res.status(500).send({ message: "Internal Server Error: Could not create petition." });
+            return;
+        }
+
+        res.status(201).json({ petitionId });
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
         res.status(500).send();
         return;
     }
-}
+};
+
 
 const editPetition = async (req: Request, res: Response): Promise<void> => {
     try{
