@@ -38,7 +38,7 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
 
     // This will now apply only if supportingCost is greater than 0
     if (supportingCost > 0) {
-        query += ` AND EXISTS (
+        whereConditions += ` AND EXISTS (
         SELECT 1
         FROM support_tier st
         WHERE st.petition_id = p.id AND st.cost <= ?)`;
