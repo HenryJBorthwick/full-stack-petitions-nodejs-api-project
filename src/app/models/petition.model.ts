@@ -104,5 +104,54 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
     return { listOfPetitions, rowLength };
 };
 
-export {getPetitions};
+const getPetitionById = async (petitionId: number): Promise<any> => {
+    Logger.info(`Getting details for petition with ID ${petitionId} from the database`);
+
+    const conn = await getPool().getConnection();
+    try {
+        // Query to get the main petition details
+        const query = `
+            SELECT
+                p.id AS petitionId,
+                p.title,
+                p.category_id AS categoryId,
+                p.owner_id AS ownerId,
+                u.first_name AS ownerFirstName,
+                u.last_name AS ownerLastName,
+                p.description,
+                p.creation_date AS creationDate,
+                (SELECT COUNT(*) FROM supporter WHERE petition_id = p.id) AS numberOfSupporters,
+                (SELECT SUM(st.cost) FROM supporter s JOIN support_tier st ON s.support_tier_id = st.id WHERE s.petition_id = p.id) AS moneyRaised
+            FROM petition p
+            JOIN user u ON p.owner_id = u.id
+            WHERE p.id = ?
+        `;
+        const [petition] = await conn.query(query, [petitionId]);
+
+        if (petition.length === 0) return null; // No petition found
+
+        // Query to get the support tiers for the petition
+        const supportTiersQuery = `
+            SELECT
+                id AS supportTierId,
+                title,
+                description,
+                cost
+            FROM support_tier
+            WHERE petition_id = ?
+        `;
+        const [supportTiers] = await conn.query(supportTiersQuery, [petitionId]);
+
+        // Combine the results and return
+        const result = {
+            ...petition[0],
+            supportTiers
+        };
+        return result;
+    } finally {
+        await conn.release();
+    }
+};
+
+export {getPetitions, getPetitionById};
 

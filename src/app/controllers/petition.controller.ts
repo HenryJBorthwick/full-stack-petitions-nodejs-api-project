@@ -52,18 +52,34 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
 }
 
 const getPetition = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        // Extract petition ID from the route parameter
+        const petitionId = parseInt(req.params.id, 10);
+        if (isNaN(petitionId)) {
+            res.statusMessage = "Bad Request: Invalid petition ID";
+            res.status(400).send();
+            return;
+        }
+
+        // Retrieve detailed information about the petition
+        const petitionDetails = await petitionModel.getPetitionById(petitionId);
+
+        // Check if the petition was found
+        if (!petitionDetails) {
+            res.statusMessage = "Not Found: No petition with the given ID";
+            res.status(404).send();
+            return;
+        }
+
+        // Respond with the petition details
+        res.status(200).json(petitionDetails);
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
         res.status(500).send();
         return;
     }
-}
+};
 
 const addPetition = async (req: Request, res: Response): Promise<void> => {
     try{
