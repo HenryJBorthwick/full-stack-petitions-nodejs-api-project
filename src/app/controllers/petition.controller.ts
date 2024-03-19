@@ -9,7 +9,7 @@ import * as petitionModel from '../models/petition.model';
 const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
     try {
         // Validate the request body against the petition search schema
-        const validation = await validate(schemas.petition_search, req.body);
+        const validation = await validate(schemas.petition_search, req.query);
         if (validation !== true) {
             res.statusMessage = `Bad Request: ${validation.toString()}`;
             res.status(400).send();
@@ -35,8 +35,6 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
         const petitions = petitionsData.listOfPetitions
         const totalPetitions = petitionsData.rowLength
 
-        // const totalPetitions = await petitionModel.getTotalPetitions(q, categoryIds, supportingCost, ownerId, supporterId);
-
         // Check if no petitions found
         if (!petitions || petitions.length === 0) {
             res.statusMessage = "No petitions found";
@@ -52,7 +50,6 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
         return;
     }
 }
-
 
 const getPetition = async (req: Request, res: Response): Promise<void> => {
     try{

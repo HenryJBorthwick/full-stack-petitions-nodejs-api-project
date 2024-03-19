@@ -80,6 +80,9 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
             query += ' ORDER BY p.creation_date ASC';
     }
 
+    // Debugging
+    Logger.info(query)
+
     const [rows] = await conn.query(query, params);
 
     const rowLength = rows.length
@@ -106,20 +109,4 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
     return { listOfPetitions, rowLength };
 };
 
-const getTotalPetitions = async (q: string, categoryIds: number[] | null, supportingCost: number, ownerId: number | null, supporterId: number | null): Promise<number> => {
-    Logger.info(`Getting total number of petitions from the database`);
-
-    const conn = await getPool().getConnection();
-    const queryBase = 'SELECT COUNT(*) as total FROM petition p JOIN user u ON p.owner_id = u.id';
-    const whereConditions = 'WHERE 1=1';
-    const params: any[] = [];
-
-    // Similar where conditions as in getPetitions, without the ORDER BY and LIMIT clauses
-    const query = `${queryBase} ${whereConditions}`;
-    const [rows] = await conn.query(query, params);
-    await conn.release();
-
-    return rows[0].total;
-};
-
-export {getPetitions, getTotalPetitions};
+export {getPetitions};
