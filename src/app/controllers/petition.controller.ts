@@ -31,8 +31,11 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
         const sortBy = req.query.sortBy ? String(req.query.sortBy) : 'CREATED_ASC';
 
         // Retrieve petitions and total count based on query parameters
-        const petitions = await petitionModel.getPetitions(startIndex, count, q, categoryIds, supportingCost, ownerId, supporterId, sortBy);
-        const totalPetitions = await petitionModel.getTotalPetitions(q, categoryIds, supportingCost, ownerId, supporterId);
+        const petitionsData = await petitionModel.getPetitions(startIndex, count, q, categoryIds, supportingCost, ownerId, supporterId, sortBy);
+        const petitions = petitionsData.listOfPetitions
+        const totalPetitions = petitionsData.rowLength
+
+        // const totalPetitions = await petitionModel.getTotalPetitions(q, categoryIds, supportingCost, ownerId, supporterId);
 
         // Check if no petitions found
         if (!petitions || petitions.length === 0) {

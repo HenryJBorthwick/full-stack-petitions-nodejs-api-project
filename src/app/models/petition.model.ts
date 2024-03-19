@@ -1,7 +1,10 @@
 import {getPool} from '../../config/db';
 import Logger from '../../config/logger';
 
-const getPetitions = async (startIndex: number, count: number | null, q: string, categoryIds: number[] | null, supportingCost: number, ownerId: number | null, supporterId: number | null, sortBy: string): Promise<any[]> => {
+const getPetitions = async (startIndex: number, count: number | null, q: string, categoryIds: number[] | null, supportingCost: number, ownerId: number | null, supporterId: number | null, sortBy: string): Promise<{
+    rowLength: any;
+    listOfPetitions: any
+}> => {
     Logger.info(`Getting petitions from the database`);
 
     const conn = await getPool().getConnection();
@@ -33,9 +36,13 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
         params.push(categoryIds);
     }
 
-    if (supportingCost >= 0) {
-        // Note: This logic assumes supportingCost = 0 should include all petitions,
-        // adjust if supportingCost should apply a filter for "free" petitions only
+    // This will now apply only if supportingCost is greater than 0
+    if (supportingCost > 0) {
+        query += ` AND EXISTS (
+        SELECT 1
+        FROM support_tier st
+        WHERE st.petition_id = p.id AND st.cost <= ?)`;
+        params.push(supportingCost);
     }
 
     if (ownerId) {
@@ -73,14 +80,30 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
             query += ' ORDER BY p.creation_date ASC';
     }
 
-    if (count !== null) {
-        query += ' LIMIT ?, ?';
-        params.push(startIndex, count);
+    const [rows] = await conn.query(query, params);
+
+    const rowLength = rows.length
+
+    let listOfPetitions;
+    if (startIndex && rowLength > startIndex) {
+        if (count && rowLength > startIndex + count) {
+            listOfPetitions = rows.slice(startIndex, startIndex + count);
+        } else {
+            listOfPetitions = rows.slice(startIndex);
+        }
+    } else if (count && rowLength > count) {
+        listOfPetitions = rows.slice(0, count);
+    } else {
+        listOfPetitions = rows
     }
 
-    const [rows] = await conn.query(query, params);
+    // if (count !== null) {
+    //     query += ' LIMIT ?, ?';
+    //     params.push(startIndex, count);
+    // }
+
     await conn.release();
-    return rows;
+    return { listOfPetitions, rowLength };
 };
 
 const getTotalPetitions = async (q: string, categoryIds: number[] | null, supportingCost: number, ownerId: number | null, supporterId: number | null): Promise<number> => {
