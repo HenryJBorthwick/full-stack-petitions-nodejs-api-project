@@ -16,7 +16,7 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
         p.owner_id AS ownerId,
         u.first_name AS ownerFirstName,
         u.last_name AS ownerLastName,
-        (SELECT COUNT(*) FROM supporter WHERE petition_id = p.id) AS numberOfSupporters,
+        CAST((SELECT COUNT(*) FROM supporter WHERE petition_id = p.id) AS CHAR) AS numberOfSupporters,
         p.creation_date AS creationDate,
         COALESCE((SELECT MIN(cost) FROM support_tier WHERE support_tier.petition_id = p.id), 0) AS supportingCost
     FROM petition p
@@ -36,7 +36,6 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
         params.push(categoryIds);
     }
 
-    // This will now apply only if supportingCost is greater than 0
     if (supportingCost > 0) {
         whereConditions += ` AND EXISTS (
         SELECT 1
@@ -59,34 +58,35 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
 
     switch (sortBy) {
         case 'ALPHABETICAL_ASC':
-            query += ' ORDER BY p.title ASC';
+            query += ' ORDER BY p.title ASC, p.id ASC';
             break;
         case 'ALPHABETICAL_DESC':
-            query += ' ORDER BY p.title DESC';
+            query += ' ORDER BY p.title DESC, p.id ASC';
             break;
         case 'COST_ASC':
-            query += ' ORDER BY supportingCost ASC';
+            query += ' ORDER BY supportingCost ASC, p.id ASC';
             break;
         case 'COST_DESC':
-            query += ' ORDER BY supportingCost DESC';
+            query += ' ORDER BY supportingCost DESC, p.id ASC';
             break;
         case 'CREATED_ASC':
-            query += ' ORDER BY p.creation_date ASC';
+            query += ' ORDER BY p.creation_date ASC, p.id ASC';
             break;
         case 'CREATED_DESC':
-            query += ' ORDER BY p.creation_date DESC';
+            query += ' ORDER BY p.creation_date DESC, p.id ASC';
             break;
         default:
-            query += ' ORDER BY p.creation_date ASC';
+            query += ' ORDER BY p.creation_date ASC, p.id ASC';
     }
 
-    // Debugging
+    // For debugging
     Logger.info(query)
 
     const [rows] = await conn.query(query, params);
 
     const rowLength = rows.length
 
+    // Getting the petition count
     let listOfPetitions;
     if (startIndex && rowLength > startIndex) {
         if (count && rowLength > startIndex + count) {
@@ -100,13 +100,9 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
         listOfPetitions = rows
     }
 
-    // if (count !== null) {
-    //     query += ' LIMIT ?, ?';
-    //     params.push(startIndex, count);
-    // }
-
     await conn.release();
     return { listOfPetitions, rowLength };
 };
 
 export {getPetitions};
+
