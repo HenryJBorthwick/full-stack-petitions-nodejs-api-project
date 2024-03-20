@@ -19,7 +19,7 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
                 await fs.access(imagePath);
 
                 // If the file exists, determine the Content-Type
-                const ext = path.extname(imageFileName);
+                const ext = path.extname(imageFileName).toLowerCase();
                 let contentType = 'image/jpeg';
                 switch (ext) {
                     case '.png':
