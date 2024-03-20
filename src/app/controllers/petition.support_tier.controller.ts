@@ -122,31 +122,37 @@ const deleteSupportTier = async (req: Request, res: Response): Promise<void> => 
         const tierId = parseInt(req.params.tierId, 10);
         if (isNaN(petitionId) || isNaN(tierId)) {
             res.status(400).send({ message: "Invalid petition ID or tier ID" });
+            return;
         }
 
         const token = req.header('x-authorization');
         if (!token) {
             res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
         }
 
         const authenticatedUser = await userModel.getByToken(token);
         if (!authenticatedUser) {
             res.status(401).send({ message: "Unauthorized: Invalid token." });
+            return;
         }
 
         const isOwner = await petitionModel.checkPetitionOwner(petitionId, authenticatedUser.id);
         if (!isOwner) {
             res.status(403).send({ message: "Forbidden: Only the owner of the petition may delete it." });
+            return;
         }
 
         const supportersExist = await petitionSupportTierModel.supportersExistForTier(tierId);
         if (supportersExist) {
             res.status(403).send({ message: "Can not delete a support tier if a supporter already exists for it." });
+            return;
         }
 
         const deleteResult = await petitionSupportTierModel.deleteSupportTier(petitionId, tierId);
         if (deleteResult.error) {
             res.status(deleteResult.status).send({ message: deleteResult.error });
+            return;
         }
 
         res.status(200).send({ message: "Support tier removed successfully." });
