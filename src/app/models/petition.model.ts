@@ -304,5 +304,27 @@ const updatePetition = async ({
     }
 };
 
-export { getPetitions, getPetitionById, addPetition, getCategories, checkPetitionOwner, updatePetition}
+const petitionHasSupporters = async (petitionId: number): Promise<boolean> => {
+    const conn = await getPool().getConnection();
+    try {
+        const query = `SELECT 1 FROM supporter WHERE petition_id = ? LIMIT 1`;
+        const [results] = await conn.query(query, [petitionId]);
+        return results.length > 0;
+    } finally {
+        await conn.release();
+    }
+};
+
+const deletePetition = async (petitionId: number): Promise<boolean> => {
+    const conn = await getPool().getConnection();
+    try {
+        const deleteQuery = `DELETE FROM petition WHERE id = ?`;
+        const [result] = await conn.query(deleteQuery, [petitionId]);
+        return result.affectedRows > 0;
+    } finally {
+        await conn.release();
+    }
+};
+
+export { getPetitions, getPetitionById, addPetition, getCategories, checkPetitionOwner, updatePetition, petitionHasSupporters, deletePetition}
 

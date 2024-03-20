@@ -189,18 +189,54 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
 };
 
 const deletePetition = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        const petitionId = parseInt(req.params.id, 10);
+        if (isNaN(petitionId)) {
+            res.status(400).send({ message: "Invalid petition ID" });
+            return;
+        }
+
+        const token = req.header('x-authorization');
+        if (!token) {
+            res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
+        }
+
+        const authenticatedUser = await userModel.getByToken(token);
+        if (!authenticatedUser) {
+            res.status(401).send({ message: "Unauthorized: Invalid token." });
+            return;
+        }
+
+        // Ensure the user is the owner of the petition
+        const isOwner = await petitionModel.checkPetitionOwner(petitionId, authenticatedUser.id);
+        if (!isOwner) {
+            res.status(403).send({ message: "Forbidden: Only the owner of the petition may delete it." });
+            return;
+        }
+
+        // Check if the petition has any supporters
+        const hasSupporters = await petitionModel.petitionHasSupporters(petitionId);
+        if (hasSupporters) {
+            res.status(403).send({ message: "Forbidden: Can not delete a petition with one or more supporters." });
+            return;
+        }
+
+        // Delete the petition
+        const success = await petitionModel.deletePetition(petitionId);
+        if (!success) {
+            res.status(404).send({ message: "Not Found: No petition found with id." });
+            return;
+        }
+
+        res.status(200).send({ message: "Petition deleted successfully." });
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
         res.status(500).send();
         return;
     }
-}
+};
 
 const getCategories = async (req: Request, res: Response): Promise<void> => {
     try {
