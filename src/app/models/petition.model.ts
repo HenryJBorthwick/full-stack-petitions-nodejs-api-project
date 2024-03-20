@@ -230,5 +230,79 @@ const getCategories = async (): Promise<any[]> => {
     }
 };
 
-export {getPetitions, getPetitionById, addPetition, getCategories};
+const checkPetitionOwner = async (petitionId: number, userId: number): Promise<boolean> => {
+    const conn = await getPool().getConnection();
+    try {
+        const query = `SELECT 1 FROM petition WHERE id = ? AND owner_id = ? LIMIT 1`;
+        const [result] = await conn.query(query, [petitionId, userId]);
+        return result.length > 0;
+    } finally {
+        await conn.release();
+    }
+};
+
+const updatePetition = async ({
+                                  petitionId,
+                                  title,
+                                  description,
+                                  categoryId
+                              }: {
+    petitionId: number,
+    title?: string, // Optional
+    description?: string, // Optional
+    categoryId?: number // Optional
+}): Promise<boolean> => {
+    const conn = await getPool().getConnection();
+    try {
+        // Start transaction
+        await conn.beginTransaction();
+
+        const queryParts = [];
+        const queryParams = [];
+
+        if (title) {
+            queryParts.push('title = ?');
+            queryParams.push(title);
+
+            // Check for unique title except for the current petition
+            const titleCheckQuery = 'SELECT 1 FROM petition WHERE title = ? AND id <> ? LIMIT 1';
+            const [titleCheckResult] = await conn.query(titleCheckQuery, [title, petitionId]);
+            if (titleCheckResult.length > 0) {
+                throw new Error('Petition title already exists');
+            }
+        }
+
+        if (description !== undefined) { // Check for undefined explicitly if empty string is a valid value
+            queryParts.push('description = ?');
+            queryParams.push(description);
+        }
+
+        if (categoryId) {
+            queryParts.push('category_id = ?');
+            queryParams.push(categoryId);
+        }
+
+        if (queryParts.length === 0) {
+            throw new Error('No valid fields provided for update');
+        }
+
+        const updateQuery = `UPDATE petition SET ${queryParts.join(', ')} WHERE id = ?`;
+        queryParams.push(petitionId);
+
+        await conn.query(updateQuery, queryParams);
+
+        // Commit transaction
+        await conn.commit();
+        return true;
+    } catch (error) {
+        // Rollback transaction on error
+        await conn.rollback();
+        Logger.error(error);
+        return false;
+    } finally {
+        await conn.release();
+    }
+};
+
+export { getPetitions, getPetitionById, addPetition, getCategories, checkPetitionOwner, updatePetition}
 

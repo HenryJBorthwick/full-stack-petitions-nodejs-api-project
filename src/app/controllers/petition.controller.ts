@@ -129,20 +129,64 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
-
 const editPetition = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        const petitionId = parseInt(req.params.id, 10);
+        if (isNaN(petitionId)) {
+            res.status(400).send({ message: "Invalid petition ID" });
+            return;
+        }
+
+        const token = req.header('x-authorization');
+        if (!token) {
+            res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
+        }
+
+        const authenticatedUser = await userModel.getByToken(token);
+        if (!authenticatedUser) {
+            res.status(401).send({ message: "Unauthorized: Invalid token." });
+            return;
+        }
+
+        // Validate the request body against the PatchPetition schema
+        const validation = await validate(schemas.petition_patch, req.body);
+        if (validation !== true) {
+            res.statusMessage = `Bad Request: ${validation.toString()}`;
+            res.status(400).send();
+            return;
+        }
+
+        const { title, description, categoryId } = req.body;
+
+        // Ensure the user is the owner of the petition
+        const isOwner = await petitionModel.checkPetitionOwner(petitionId, authenticatedUser.id);
+        if (!isOwner) {
+            res.status(403).send({ message: "Forbidden: Only the owner of the petition may change it." });
+            return;
+        }
+
+        // Update the petition
+        const success = await petitionModel.updatePetition({
+            petitionId,
+            title,
+            description,
+            categoryId,
+        });
+
+        if (!success) {
+            res.status(404).send({ message: "Not Found: No petition found with id or title already exists." });
+            return;
+        }
+
+        res.status(200).send({ message: "Petition updated successfully." });
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
         res.status(500).send();
         return;
     }
-}
+};
 
 const deletePetition = async (req: Request, res: Response): Promise<void> => {
     try{
