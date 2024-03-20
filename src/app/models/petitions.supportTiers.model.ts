@@ -34,4 +34,60 @@ const addSupportTier = async (
     }
 };
 
-export {addSupportTier};
+const editSupportTier = async (
+    tierId: number,
+    { title, description, cost }: { title?: string; description?: string; cost?: number; }
+): Promise<{ error?: string }> => {
+    const conn = await getPool().getConnection();
+    try {
+        // Check if there are any supporters for this tier before updating
+        const supporterCheckQuery = `SELECT 1 FROM supporter WHERE support_tier_id = ? LIMIT 1`;
+        const [supporterCheckResult] = await conn.query(supporterCheckQuery, [tierId]);
+        if (supporterCheckResult.length > 0) {
+            return { error: "Cannot edit a support tier if a supporter already exists for it." };
+        }
+
+        // Dynamically build the update query based on provided fields
+        const updates = [];
+        const values = [];
+        if (title !== undefined) {
+            updates.push("title = ?");
+            values.push(title);
+        }
+        if (description !== undefined) {
+            updates.push("description = ?");
+            values.push(description);
+        }
+        if (cost !== undefined) {
+            updates.push("cost = ?");
+            values.push(cost);
+        }
+
+        if (updates.length === 0) {
+            return { error: "No valid fields provided for update" };
+        }
+
+        values.push(tierId); // Add tierId for the WHERE clause
+        const updateQuery = `UPDATE support_tier SET ${updates.join(", ")} WHERE id = ?`;
+        await conn.query(updateQuery, values);
+
+        return {}; // Indicates success without any error
+    } catch (error) {
+        Logger.error(error);
+        return { error: "Internal Server Error" };
+    } finally {
+        await conn.release();
+    }
+};
+
+async function supportersExistForTier(tierId: number): Promise<boolean> {
+    const conn = await getPool().getConnection();
+    try {
+        const [results] = await conn.query("SELECT 1 FROM supporter WHERE support_tier_id = ?", [tierId]);
+        return results.length > 0;
+    } finally {
+        await conn.release();
+    }
+}
+
+export {addSupportTier, editSupportTier, supportersExistForTier};

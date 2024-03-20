@@ -61,18 +61,60 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
 };
 
 const editSupportTier = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        const petitionId = parseInt(req.params.id, 10);
+        const tierId = parseInt(req.params.tierId, 10);
+        if (isNaN(petitionId) || isNaN(tierId)) {
+            res.status(400).send({ message: "Invalid petition ID or tier ID" });
+            return;
+        }
+
+        const token = req.header('x-authorization');
+        if (!token) {
+            res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
+        }
+
+        const authenticatedUser = await userModel.getByToken(token);
+        if (!authenticatedUser) {
+            res.status(401).send({ message: "Unauthorized: Invalid token." });
+            return;
+        }
+
+        const isOwner = await petitionModel.checkPetitionOwner(petitionId, authenticatedUser.id);
+        if (!isOwner) {
+            res.status(403).send({ message: "Forbidden: Only the owner of the petition may modify it." });
+            return;
+        }
+
+        const validation = await validate(schemas.support_tier_patch, req.body);
+        if (validation !== true) {
+            res.status(400).send({ message: `Bad Request: ${validation.toString()}` });
+            return;
+        }
+
+        const { title, description, cost } = req.body;
+
+        // Check if there are supporters for the tier before proceeding
+        const supportersExist = await petitionSupportTierModel.supportersExistForTier(tierId);
+        if (supportersExist) {
+            res.status(403).send({ message: "Cannot edit a support tier if a supporter already exists for it." });
+            return;
+        }
+
+        const result = await petitionSupportTierModel.editSupportTier(tierId, { title, description, cost });
+
+        if (result.error) {
+            res.status(403).send({ message: result.error });
+            return;
+        }
+
+        res.status(200).send({ message: "Support tier updated successfully." });
     } catch (err) {
         Logger.error(err);
-        res.statusMessage = "Internal Server Error";
-        res.status(500).send();
-        return;
+        res.status(500).send({ message: "Internal Server Error" });
     }
-}
+};
 
 const deleteSupportTier = async (req: Request, res: Response): Promise<void> => {
     try{
