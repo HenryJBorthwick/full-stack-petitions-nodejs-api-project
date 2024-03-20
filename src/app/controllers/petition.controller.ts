@@ -158,18 +158,17 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
     }
 }
 
-const getCategories = async(req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+const getCategories = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const categories = await petitionModel.getCategories();
+        res.status(200).json(categories);
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
         res.status(500).send();
         return;
     }
-}
+};
+
 
 export {getAllPetitions, getPetition, addPetition, editPetition, deletePetition, getCategories};

@@ -216,5 +216,19 @@ const addPetition = async ({
     }
 };
 
-export {getPetitions, getPetitionById, addPetition};
+const getCategories = async (): Promise<any[]> => {
+    const conn = await getPool().getConnection();
+    try {
+        const query = 'SELECT id AS categoryId, name FROM category ORDER BY name ASC';
+        const [categories] = await conn.query(query);
+        return categories;
+    } catch (err) {
+        Logger.error(`Failed to get categories: ${err.message}`);
+        throw err; // Rethrow the error so it can be caught by the controller
+    } finally {
+        await conn.release();
+    }
+};
+
+export {getPetitions, getPetitionById, addPetition, getCategories};
 
