@@ -90,4 +90,30 @@ async function supportersExistForTier(tierId: number): Promise<boolean> {
     }
 }
 
-export {addSupportTier, editSupportTier, supportersExistForTier};
+const deleteSupportTier = async (petitionId: number, tierId: number): Promise<{ error?: string, status?: number }> => {
+    const conn = await getPool().getConnection();
+    try {
+        // Check if the tier to be deleted is the only one for the petition
+        const countQuery = "SELECT COUNT(*) AS count FROM support_tier WHERE petition_id = ?";
+        const [countResults] = await conn.query(countQuery, [petitionId]);
+        if (countResults[0].count <= 1) {
+            return { error: "Can not remove a support tier if it is the only one for a petition", status: 403 };
+        }
+
+        // Proceed with deletion
+        const deleteQuery = "DELETE FROM support_tier WHERE id = ? AND petition_id = ?";
+        const [result] = await conn.query(deleteQuery, [tierId, petitionId]);
+        if (result.affectedRows === 0) {
+            return { error: "Not Found or Forbidden", status: 404 };
+        }
+
+        return {};
+    } catch (error) {
+        Logger.error(error);
+        return { error: "Internal Server Error", status: 500 };
+    } finally {
+        await conn.release();
+    }
+};
+
+export {addSupportTier, editSupportTier, supportersExistForTier, deleteSupportTier};

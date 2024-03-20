@@ -117,17 +117,43 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
 };
 
 const deleteSupportTier = async (req: Request, res: Response): Promise<void> => {
-    try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+    try {
+        const petitionId = parseInt(req.params.id, 10);
+        const tierId = parseInt(req.params.tierId, 10);
+        if (isNaN(petitionId) || isNaN(tierId)) {
+            res.status(400).send({ message: "Invalid petition ID or tier ID" });
+        }
+
+        const token = req.header('x-authorization');
+        if (!token) {
+            res.status(401).send({ message: "Unauthorized: No token provided." });
+        }
+
+        const authenticatedUser = await userModel.getByToken(token);
+        if (!authenticatedUser) {
+            res.status(401).send({ message: "Unauthorized: Invalid token." });
+        }
+
+        const isOwner = await petitionModel.checkPetitionOwner(petitionId, authenticatedUser.id);
+        if (!isOwner) {
+            res.status(403).send({ message: "Forbidden: Only the owner of the petition may delete it." });
+        }
+
+        const supportersExist = await petitionSupportTierModel.supportersExistForTier(tierId);
+        if (supportersExist) {
+            res.status(403).send({ message: "Can not delete a support tier if a supporter already exists for it." });
+        }
+
+        const deleteResult = await petitionSupportTierModel.deleteSupportTier(petitionId, tierId);
+        if (deleteResult.error) {
+            res.status(deleteResult.status).send({ message: deleteResult.error });
+        }
+
+        res.status(200).send({ message: "Support tier removed successfully." });
     } catch (err) {
         Logger.error(err);
-        res.statusMessage = "Internal Server Error";
-        res.status(500).send();
-        return;
+        res.status(500).send({ message: "Internal Server Error" });
     }
-}
+};
 
 export {addSupportTier, editSupportTier, deleteSupportTier};
