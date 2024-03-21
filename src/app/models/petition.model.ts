@@ -80,7 +80,7 @@ const getPetitions = async (startIndex: number, count: number | null, q: string,
     }
 
     // For debugging
-    Logger.info(query)
+    // Logger.info(query)
 
     const [rows] = await conn.query(query, params);
 
