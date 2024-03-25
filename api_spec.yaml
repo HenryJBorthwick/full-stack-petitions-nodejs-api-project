@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: "SENG365 2024: Petitions API"
-  version: 0.0.1
+  version: 1.0.2
   description: "This specification documents the petitions API to be implemented for Assignment 1. This API provides all of the server-side functionality necessary in order to implement all the user stories for Assignment 2"
 servers:
   - url: https://seng365.csse.canterbury.ac.nz/api/v1
@@ -300,7 +300,7 @@ paths:
             $ref: "#/components/schemas/PetitionSearchRequest/properties/categoryIds"
         - in: query
           name: supportingCost
-          description: "Only include petitions that have at least 1 support tier less than or equal to the given value. A value of 0 will only include petitions that are free to support."
+          description: "Only include petitions that have at least 1 support tier less than or equal to the given value. A value of 0 will only include petitions that are free to support. If no value is provided the API must return all petitions."
           schema:
             $ref: "#/components/schemas/PetitionSearchRequest/properties/supportingCost"
         - in: query
@@ -315,7 +315,7 @@ paths:
             $ref: "#/components/schemas/PetitionSearchRequest/properties/supporterId"
         - in: query
           name: sortBy
-          description: "Sort the petitions by the given property, according to the following rules:<ul><li>`ALPHABETICAL_ASC`: alphabetically by title, A-Z</li><li>`ALPHABETICAL_DESC`: alphabetically by title, Z-A</li><li>`COST_ASC`: by cost of cheapest support tier ascending</li><li>`COST_DESC`: by cost of cheapest support tier descending</li></li>`CREATED_ASC`: chronologically in order of creation date oldest-newest</li><li>`CREATED_DESC`: chronologically in order of creation date newest-oldest</li></ul>"
+          description: "Sort the petitions by the given property, according to the following rules:<ul><li>`ALPHABETICAL_ASC`: alphabetically by title, A-Z</li><li>`ALPHABETICAL_DESC`: alphabetically by title, Z-A</li><li>`COST_ASC`: by cost of cheapest support tier ascending</li><li>`COST_DESC`: by cost of cheapest support tier descending</li></li>`CREATED_ASC`: chronologically in order of creation date oldest-newest</li><li>`CREATED_DESC`: chronologically in order of creation date newest-oldest</li></ul>All sorting cases must include a tie-breaker on **petitionId**"
           schema:
             $ref: "#/components/schemas/PetitionSearchRequest/properties/sortBy"
       responses:
@@ -333,7 +333,7 @@ paths:
       tags:
         - petitions
       summary: "Add a new petition"
-      description: "Create a new petition.<ul><li> The `categoryId` **must reference an existing category**, if it does not it must return a 400.</li><li>A Petition **must have between 1 and 3** `supportTiers` (inclusive), if it does not it must return a 400.</li><li>The `title` **must be unique**, otherwise it must return a 403.</li><li>Each `supportTier.title` **must be unique within those for the petition**, otherwise it must return a 400.</li></ul>" 
+      description: "Create a new petition.<ul><li> The `categoryId` **must reference an existing category**, if it does not it must return a 400.</li><li>A Petition **must have between 1 and 3** `supportTiers` (inclusive), if it does not it must return a 400.</li><li>The `title` **must be unique**, otherwise it must return a 403.</li><li>Each `supportTier.title` **must be unique within those for the petition**, otherwise it must return a 400.</li></ul>"
       security:
         - UserToken: []
       requestBody:
@@ -820,7 +820,6 @@ components:
           title: SupportingCost
           type: integer
           minimum: 0
-          default: 0
           example: 5
         ownerId:
           $ref: "#/components/schemas/LoginResponse/properties/userId"
@@ -888,7 +887,7 @@ components:
           type: integer
           minimum: 0
           example: 0
-          nullable: false        
+          nullable: false
     Petition:
       title: Petition
       type: object
