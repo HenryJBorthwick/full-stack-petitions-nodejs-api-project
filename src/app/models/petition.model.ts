@@ -121,7 +121,7 @@ const getPetitionById = async (petitionId: number): Promise<any> => {
                 p.description,
                 p.creation_date AS creationDate,
                 (SELECT COUNT(*) FROM supporter WHERE petition_id = p.id) AS numberOfSupporters,
-                (SELECT SUM(st.cost) FROM supporter s JOIN support_tier st ON s.support_tier_id = st.id WHERE s.petition_id = p.id) AS moneyRaised
+                CAST(COALESCE((SELECT SUM(st.cost) FROM supporter s JOIN support_tier st ON s.support_tier_id = st.id WHERE s.petition_id = p.id), 0) AS SIGNED) AS moneyRaised
             FROM petition p
             JOIN user u ON p.owner_id = u.id
             WHERE p.id = ?
@@ -326,5 +326,18 @@ const deletePetition = async (petitionId: number): Promise<boolean> => {
     }
 };
 
-export { getPetitions, getPetitionById, addPetition, getCategories, checkPetitionOwner, updatePetition, petitionHasSupporters, deletePetition}
+const checkCategoryExists = async (categoryIds: number) => {
+    const conn = await getPool().getConnection();
+    try {
+        const [result] = await conn.query('SELECT 1 FROM category WHERE id = ?', [categoryIds]);
+        return result.length > 0;
+    } catch (error) {
+        Logger.error(error);
+        return false; // Consider how you want to handle errors
+    } finally {
+        await conn.release();
+    }
+};
+
+export { getPetitions, getPetitionById, addPetition, getCategories, checkPetitionOwner, updatePetition, petitionHasSupporters, deletePetition, checkCategoryExists}
 

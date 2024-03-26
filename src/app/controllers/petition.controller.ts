@@ -30,6 +30,19 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
         const supporterId = req.query.supporterId ? Number(req.query.supporterId) : null;
         const sortBy = req.query.sortBy ? String(req.query.sortBy) : 'CREATED_ASC';
 
+        // Validate category IDs, if any
+        if (categoryIds) {
+            const categoriesExist = await Promise.all(
+                categoryIds.map((id) => petitionModel.checkCategoryExists(id))
+            );
+
+            if (categoriesExist.includes(false)) { // If any category does not exist
+                res.statusMessage = "Bad Request: One or more categories do not exist";
+                res.status(400).send();
+                return;
+            }
+        }
+
         // Retrieve petitions and total count based on query parameters
         const petitionsData = await petitionModel.getPetitions(startIndex, count, q, categoryIds, supportingCost, ownerId, supporterId, sortBy);
         const petitions = petitionsData.listOfPetitions
@@ -38,7 +51,7 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
         // Check if no petitions found
         if (!petitions || petitions.length === 0) {
             res.statusMessage = "No petitions found";
-            res.status(404).send();
+            res.status(400).send();
             return;
         }
 
@@ -105,6 +118,13 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
 
         // Extracting fields from the request body
         const { title, description, categoryId, supportTiers } = req.body;
+
+        // Check if the category ID is valid
+        const isCategoryValid = await petitionModel.checkCategoryExists(categoryId);
+        if (!isCategoryValid) {
+            res.status(400).send({ message: "Bad Request: Invalid category ID." });
+            return;
+        }
 
         // Implement further validation (unique title, valid category, support tiers constraints) in the model function
         const petitionId = await petitionModel.addPetition({
