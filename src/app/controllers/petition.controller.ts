@@ -157,6 +157,13 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
+        // Check if the petition exists before proceeding
+        const petitionExists = await petitionModel.getPetitionById(petitionId);
+        if (!petitionExists) {
+            res.status(404).send({ message: "Not Found: No petition found with the given ID" });
+            return;
+        }
+
         const token = req.header('x-authorization');
         if (!token) {
             res.status(401).send({ message: "Unauthorized: No token provided." });
@@ -195,7 +202,7 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         });
 
         if (!success) {
-            res.status(404).send({ message: "Not Found: No petition found with id or title already exists." });
+            res.status(403).send({ message: "Forbidden: Petition title already exists." });
             return;
         }
 
