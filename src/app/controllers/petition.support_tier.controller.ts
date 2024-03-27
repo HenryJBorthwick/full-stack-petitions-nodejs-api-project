@@ -69,9 +69,29 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
+        const validation = await validate(schemas.support_tier_patch, req.body);
+        if (validation !== true) {
+            res.status(400).send({ message: `Bad Request: ${validation.toString()}` });
+            return;
+        }
+
         const token = req.header('x-authorization');
         if (!token) {
             res.status(401).send({ message: "Unauthorized: No token provided." });
+            return;
+        }
+
+        // Check if the petition exists before proceeding
+        const petitionExistsResult = await petitionSupportTierModel.petitionExists(petitionId);
+        if (!petitionExistsResult) {
+            res.status(404).send({ message: "Petition not found" });
+            return;
+        }
+
+        // Check if the support tier exists before proceeding
+        const tierExistsResult = await petitionSupportTierModel.tierExists(tierId);
+        if (!tierExistsResult) {
+            res.status(404).send({ message: "Support tier not found" });
             return;
         }
 
@@ -84,12 +104,6 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
         const isOwner = await petitionModel.checkPetitionOwner(petitionId, authenticatedUser.id);
         if (!isOwner) {
             res.status(403).send({ message: "Forbidden: Only the owner of the petition may modify it." });
-            return;
-        }
-
-        const validation = await validate(schemas.support_tier_patch, req.body);
-        if (validation !== true) {
-            res.status(400).send({ message: `Bad Request: ${validation.toString()}` });
             return;
         }
 

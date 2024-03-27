@@ -333,7 +333,7 @@ const checkCategoryExists = async (categoryIds: number) => {
         return result.length > 0;
     } catch (error) {
         Logger.error(error);
-        return false; // Consider how you want to handle errors
+        return false;
     } finally {
         await conn.release();
     }

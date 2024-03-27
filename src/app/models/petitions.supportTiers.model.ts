@@ -116,4 +116,33 @@ const deleteSupportTier = async (petitionId: number, tierId: number): Promise<{ 
     }
 };
 
-export {addSupportTier, editSupportTier, supportersExistForTier, deleteSupportTier};
+async function petitionExists(petitionId: number): Promise<boolean> {
+    const conn = await getPool().getConnection();
+    try {
+        const query = 'SELECT 1 FROM petition WHERE id = ?';
+        const [results] = await conn.query(query, [petitionId]);
+        return results.length > 0;
+    } catch (error) {
+        Logger.error(error);
+        throw error;
+    } finally {
+        conn.release();
+    }
+}
+
+async function tierExists(tierId: number): Promise<boolean> {
+    const conn = await getPool().getConnection();
+    try {
+        const query = 'SELECT 1 FROM support_tier WHERE id = ?';
+        const [results] = await conn.query(query, [tierId]);
+        return results.length > 0;
+    } catch (error) {
+        Logger.error(error);
+        throw error;
+    } finally {
+        conn.release();
+    }
+}
+
+
+export {addSupportTier, editSupportTier, supportersExistForTier, deleteSupportTier, petitionExists, tierExists};
