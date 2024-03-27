@@ -12,7 +12,7 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
 
         if (imageFileName) {
             // file exists, construct the path
-            const imagePath = path.join('storage', imageFileName);
+            const imagePath = path.join('storage/images', imageFileName);
 
             try {
                 // Attempt to access the file
@@ -91,7 +91,7 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
 
         // Construct the image filename and path
         const imageFileName = `${userId}_${Date.now()}.${fileType.split('/')[1]}`;
-        const imagePath = path.join('storage', imageFileName);
+        const imagePath = path.join('storage/images', imageFileName);
 
         // Save the image file to the storage directory
         await fs.writeFile(imagePath, imageFile, 'binary');
@@ -152,7 +152,7 @@ const deleteImage = async (req: Request, res: Response): Promise<void> => {
         }
 
         // Construct the image path
-        const imagePath = path.join('storage', imageFileName);
+        const imagePath = path.join('storage/images', imageFileName);
 
         // Delete the image file
         await fs.unlink(imagePath);

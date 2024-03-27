@@ -51,10 +51,16 @@ const login = async (req: Request, res: Response): Promise<void> => {
     try {
         // Validate the request body against the user login schema
         const validation = await validate(schemas.user_login, req.body);
-
         if (validation !== true) {
             res.statusMessage = `Bad Request: ${validation.toString()}`;
             res.status(400).send();
+            return;
+        }
+
+        // Email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(req.body.email)) {
+            res.status(400).send({ message: "Invalid email format." });
             return;
         }
 
