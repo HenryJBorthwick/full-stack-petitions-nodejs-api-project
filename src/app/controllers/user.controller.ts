@@ -85,7 +85,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
         }
 
         // Token generation
-        const secretKey = process.env.JWT_SECRET;
+        const secretKey = process.env.JWT_SECRET || "dont add things to .env";
         const token = jwt.sign({ id: user.id }, secretKey);
 
         // Update token in the database
