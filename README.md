@@ -1,5 +1,9 @@
 # SENG365 Assignment 1 API Server (Petition Site)
 
+# Overview
+
+Full Stack Petitions NodeJS API Project for Web Computing Architectures. Uses Typescript, Express.js. [Link to project recordings](https://drive.google.com/drive/folders/1l3dRC8Xoe5sIWdJNtHJkqTVCakvrLaIG?usp=drive_link)
+
 ## Running locally
 
 1. Use `npm install` to populate the `node_modules/` directory with up-to-date packages
